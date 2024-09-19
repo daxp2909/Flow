@@ -1,13 +1,4 @@
 import numpy as np
-import time
-
-# Default values
-DEFAULT_DISTANCES = [100, 150, 200]
-DEFAULT_SPEEDS = [50, 60, 70]
-DEFAULT_VOLUMES = [1000, 1200, 1500]
-DEFAULT_GREEN_TIMES = [30, 40, 50]
-DEFAULT_EMERGENCIES = []
-DEFAULT_ACCIDENTS = []
 
 # Traffic simulation class
 class TrafficSimulation:
@@ -32,9 +23,6 @@ class TrafficSimulation:
     def simulate(self):
         optimized_green_times = self.optimize_signals()
         num_signals = len(self.distances)
-
-        self.flow = []
-        self.bad_scenarios = []
 
         for i in range(num_signals):
             if i in self.accidents:
@@ -67,6 +55,7 @@ class TrafficSimulation:
         self.rating = np.mean(self.flow) if self.flow else 0
         return self.rating
 
+# Function to calculate green times
 def calculate_green_times(distances, speeds, volumes):
     green_times = []
     for distance, speed, volume in zip(distances, speeds, volumes):
@@ -80,46 +69,71 @@ def calculate_green_times(distances, speeds, volumes):
             green_times.append(green_time)
     return green_times
 
-# Function to simulate predefined user input
-def get_predefined_input():
-    num_signals = len(DEFAULT_DISTANCES)
-    distances = DEFAULT_DISTANCES
-    speeds = DEFAULT_SPEEDS
-    volumes = DEFAULT_VOLUMES
-    emergencies = DEFAULT_EMERGENCIES
-    accidents = DEFAULT_ACCIDENTS
-    return num_signals, distances, speeds, volumes, emergencies, accidents
-
-def real_time_update_with_input(simulation, interval=10):
+# Function to get user input with space-separated values
+def get_user_input():
     while True:
-        distances = DEFAULT_DISTANCES
-        speeds = DEFAULT_SPEEDS
-        volumes = DEFAULT_VOLUMES
-        simulation.distances = distances
-        simulation.speeds = speeds
-        simulation.volumes = volumes
-        simulation.green_times = calculate_green_times(distances, speeds, volumes)  # Recalculate green times
+        try:
+            num_signals = int(input("Enter the number of signals: ").strip())
+            if num_signals <= 0:
+                raise ValueError("Number of signals must be positive.")
 
-        simulation.simulate()
-        print(f"Simulation Rating (1-10): {simulation.rating:.2f}")
-        if simulation.bad_scenarios:
-            print("Bad Scenarios:")
-            for index, reason in simulation.bad_scenarios:
-                print(f"Signal {index}: {reason}")
+            distances = get_input_list(f"Enter distances between {num_signals} signals (space-separated):", num_signals)
+            speeds = get_input_list(f"Enter vehicle speeds for {num_signals} signals (space-separated):", num_signals)
+            volumes = get_input_list(f"Enter traffic volumes at {num_signals} signals (space-separated):", num_signals)
 
-        time.sleep(interval)  # Wait for a specified interval before the next update
+            return num_signals, distances, speeds, volumes
+        except ValueError as e:
+            print(f"Input error: {e}. Please try again.")
+        except EOFError:
+            print("Input error: Unexpected end of input. Please provide input in the expected format.")
+
+# Function to get list input from the user with space-separated values
+def get_input_list(prompt, expected_length):
+    print(prompt)
+    values = list(map(int, input().strip().split()))
+    if len(values) != expected_length:
+        raise ValueError(f"Expected {expected_length} values, but got {len(values)}.")
+    return values
+
+# Function to get emergency and accident input with space-separated values
+def get_emergency_accident_input(num_signals):
+    emergencies = get_index_list("Enter indices of signals with emergencies (space-separated) or press Enter to skip:", num_signals)
+    accidents = get_index_list("Enter indices of signals with accidents (space-separated) or press Enter to skip:", num_signals)
+    return emergencies, accidents
+
+# Function to get list of indices from the user with space-separated values
+def get_index_list(prompt, num_signals):
+    while True:
+        try:
+            print(prompt)
+            indices_input = input().strip()
+            if not indices_input:
+                return []
+            indices = list(map(int, indices_input.split()))
+            if any(i >= num_signals for i in indices):
+                raise ValueError("Indices must be within the range of signals.")
+            return indices
+        except ValueError as e:
+            print(f"Input error: {e}. Please try again.")
+        except EOFError:
+            print("Input error: Unexpected end of input. Please provide input in the expected format.")
 
 # Main execution
 def main():
-    num_signals, distances, speeds, volumes, emergencies, accidents = get_predefined_input()
+    num_signals, distances, speeds, volumes = get_user_input()
+    emergencies, accidents = get_emergency_accident_input(num_signals)
     green_times = calculate_green_times(distances, speeds, volumes)
 
     print(f"Calculated Green Times for each signal: {green_times}")
 
     simulation = TrafficSimulation(distances, speeds, volumes, green_times, emergencies, accidents)
+    rating = simulation.simulate()
 
-    # Start real-time simulation with dynamic input
-    real_time_update_with_input(simulation)
+    print(f"Simulation Rating (1-10): {rating:.2f}")  # Format rating to 2 decimal places
+    if simulation.bad_scenarios:
+        print("Bad Scenarios:")
+        for index, reason in simulation.bad_scenarios:
+            print(f"Signal {index}: {reason}")
 
 if __name__ == "__main__":
     main()
